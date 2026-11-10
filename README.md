@@ -12,6 +12,8 @@ Godot file and scripting support for Zed.
 
 C# language support and debugging are provided by [zed-csharp](https://github.com/kevin-mueller/zed-csharp).
 
+![Godot resource hover in Zed showing a resolved path, resource type, open link and image preview](assets/2026-11-10_21-20-18.png)
+
 ## Installation
 
 Run `zed: install dev extension` in Zed and select this repository. Disable the
