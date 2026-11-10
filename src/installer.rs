@@ -40,8 +40,8 @@ impl ReleaseTarget {
             (Os::Windows, Architecture::X8664) => Ok(Self::WindowsX86_64),
             (os, arch) => Err(format!(
                 "Unsupported platform {os:?}/{arch:?} for {BINARY_STEM} v{GDFILES_LSP_VERSION}. \
-                 Supported release targets are x86_64-unknown-linux-gnu, \
-                 aarch64-unknown-linux-gnu, x86_64-apple-darwin, aarch64-apple-darwin, and \
+                 Supported release targets are x86_64-unknown-linux-musl, \
+                 aarch64-unknown-linux-musl, x86_64-apple-darwin, aarch64-apple-darwin, and \
                  x86_64-pc-windows-msvc. Set lsp.gdfiles-lsp.binary.path to a locally built \
                  {BINARY_STEM} executable or install it with \
                  `cargo install --path crates/gdfiles-lsp`."
@@ -51,8 +51,8 @@ impl ReleaseTarget {
 
     pub(crate) fn triple(self) -> &'static str {
         match self {
-            Self::LinuxX86_64 => "x86_64-unknown-linux-gnu",
-            Self::LinuxAarch64 => "aarch64-unknown-linux-gnu",
+            Self::LinuxX86_64 => "x86_64-unknown-linux-musl",
+            Self::LinuxAarch64 => "aarch64-unknown-linux-musl",
             Self::MacX86_64 => "x86_64-apple-darwin",
             Self::MacAarch64 => "aarch64-apple-darwin",
             Self::WindowsX86_64 => "x86_64-pc-windows-msvc",

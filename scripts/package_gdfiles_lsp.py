@@ -7,6 +7,8 @@ The distribution contract is shared with the Zed extension downloader:
 * artifact basename: ``gdfiles-lsp-v${version}-${target}``
 * Linux/macOS: ``${basename}.tar.gz`` containing ``gdfiles-lsp``
   (mode 0755) and ``LICENCE`` as top-level members
+* Linux archives target musl and are statically linked, with no dynamic
+  loader or shared-library dependencies.
 * Windows: ``${basename}.zip`` containing ``gdfiles-lsp.exe`` and
   ``LICENCE`` as top-level members
 
@@ -35,8 +37,8 @@ LICENSE = "LICENCE"
 TAG_PREFIX = "gdfiles-lsp-v"
 
 SUPPORTED_TARGETS = (
-    "x86_64-unknown-linux-gnu",
-    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-musl",
     "x86_64-apple-darwin",
     "aarch64-apple-darwin",
     "x86_64-pc-windows-msvc",

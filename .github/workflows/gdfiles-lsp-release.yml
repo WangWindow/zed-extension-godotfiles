@@ -79,16 +79,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Current official labels. Linux uses Ubuntu 24.04, so the GNU
-          # binaries target a glibc 2.39 baseline. Windows 2025 is the current
-          # stable Windows Server image. macOS 26 is current stable for Apple
-          # Silicon; macOS 15 Intel remains the newest official x64 label
-          # recognized by current Actions tooling.
+          # Current official labels. Linux uses Ubuntu 24.04 but links the
+          # musl targets statically with Rust's bundled rust-lld, so the
+          # binaries have no dynamic loader or shared-library dependencies.
+          # Windows 2025 is the current stable Windows Server image. macOS 26
+          # is current stable for Apple Silicon; macOS 15 Intel remains the
+          # newest official x64 label recognized by current Actions tooling.
           - runner: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-musl
             python: python3
           - runner: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
+            target: aarch64-unknown-linux-musl
             python: python3
           - runner: macos-15-intel
             target: x86_64-apple-darwin
@@ -125,9 +126,41 @@ jobs:
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
+          # Use Rust's bundled LLD for both Linux musl targets so no external
+          # musl toolchain is needed. musl keeps crt-static enabled by default.
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: rust-lld
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: rust-lld
         run: |
           set -euo pipefail
           cargo build --release -p gdfiles-lsp --bin gdfiles-lsp --target "$TARGET"
+
+      - name: Verify Linux binary is static musl (no dynamic dependencies)
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          binary="target/${TARGET}/release/gdfiles-lsp"
+          if [ ! -f "$binary" ]; then
+            echo "::error::expected Linux binary is missing: $binary"
+            exit 1
+          fi
+          if ! output="$(readelf --wide --program-headers --dynamic "$binary")"; then
+            echo "::error::readelf failed for $binary"
+            exit 1
+          fi
+          if grep -q 'INTERP' <<<"$output"; then
+            echo "::error::$binary has a dynamic interpreter (PT_INTERP); expected a static musl binary"
+            grep 'INTERP' <<<"$output"
+            exit 1
+          fi
+          if grep -qE '\((NEEDED|Shared library)\)' <<<"$output"; then
+            echo "::error::$binary has dynamic library dependencies; expected a static musl binary"
+            grep -E '\((NEEDED|Shared library)\)' <<<"$output"
+            exit 1
+          fi
+          echo "verified static musl ELF: no PT_INTERP and no NEEDED entries"
 
       - name: Package native release archive
         shell: bash

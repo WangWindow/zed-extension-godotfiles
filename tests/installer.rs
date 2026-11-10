@@ -18,16 +18,16 @@ fn maps_supported_platforms_to_contract_targets() {
             Os::Linux,
             Architecture::X8664,
             ReleaseTarget::LinuxX86_64,
-            "x86_64-unknown-linux-gnu",
-            "gdfiles-lsp-v0.1.0-x86_64-unknown-linux-gnu.tar.gz",
+            "x86_64-unknown-linux-musl",
+            "gdfiles-lsp-v0.1.0-x86_64-unknown-linux-musl.tar.gz",
             "gdfiles-lsp",
         ),
         (
             Os::Linux,
             Architecture::Aarch64,
             ReleaseTarget::LinuxAarch64,
-            "aarch64-unknown-linux-gnu",
-            "gdfiles-lsp-v0.1.0-aarch64-unknown-linux-gnu.tar.gz",
+            "aarch64-unknown-linux-musl",
+            "gdfiles-lsp-v0.1.0-aarch64-unknown-linux-musl.tar.gz",
             "gdfiles-lsp",
         ),
         (
@@ -80,6 +80,9 @@ fn rejects_unsupported_platforms_with_actionable_error() {
             "{error}"
         );
         assert!(!error.contains("--locked"), "{error}");
+        assert!(error.contains("x86_64-unknown-linux-musl"), "{error}");
+        assert!(error.contains("aarch64-unknown-linux-musl"), "{error}");
+        assert!(!error.contains("linux-gnu"), "{error}");
     }
 }
 
@@ -240,12 +243,12 @@ fn unavailable_release_error_names_tag_target_asset_and_local_alternatives() {
 
     let error = installer::unavailable_error(
         ReleaseTarget::LinuxAarch64,
-        "the release has no asset named gdfiles-lsp-v0.1.0-aarch64-unknown-linux-gnu.tar.gz",
+        "the release has no asset named gdfiles-lsp-v0.1.0-aarch64-unknown-linux-musl.tar.gz",
     );
     assert!(error.contains(RELEASE_TAG), "{error}");
-    assert!(error.contains("aarch64-unknown-linux-gnu"), "{error}");
+    assert!(error.contains("aarch64-unknown-linux-musl"), "{error}");
     assert!(
-        error.contains("gdfiles-lsp-v0.1.0-aarch64-unknown-linux-gnu.tar.gz"),
+        error.contains("gdfiles-lsp-v0.1.0-aarch64-unknown-linux-musl.tar.gz"),
         "{error}"
     );
     assert!(error.contains("lsp.gdfiles-lsp.binary.path"), "{error}");

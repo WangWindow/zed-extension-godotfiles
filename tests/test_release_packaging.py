@@ -23,13 +23,13 @@ SCRIPT = ROOT / "scripts" / "package_gdfiles_lsp.py"
 WORKFLOW = ROOT / ".github" / "workflows" / "gdfiles-lsp-release.yml"
 
 EXPECTED_TARGETS = (
-    "x86_64-unknown-linux-gnu",
-    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-musl",
     "x86_64-apple-darwin",
     "aarch64-apple-darwin",
     "x86_64-pc-windows-msvc",
 )
-LINUX = "x86_64-unknown-linux-gnu"
+LINUX = "x86_64-unknown-linux-musl"
 WINDOWS = "x86_64-pc-windows-msvc"
 VERSION = "0.1.0"
 
@@ -56,7 +56,7 @@ class ContractConstantsTests(unittest.TestCase):
         self.assertEqual(tuple(packaging.SUPPORTED_TARGETS), EXPECTED_TARGETS)
 
     def test_archive_names(self):
-        basename = "gdfiles-lsp-v0.1.0-x86_64-unknown-linux-gnu"
+        basename = "gdfiles-lsp-v0.1.0-x86_64-unknown-linux-musl"
         self.assertEqual(
             packaging.archive_name(VERSION, LINUX), f"{basename}.tar.gz"
         )
@@ -120,13 +120,14 @@ class ValidationTests(unittest.TestCase):
         with self.assertRaises(packaging.PackagingError):
             packaging.validate_version(None)  # type: ignore[arg-type]
 
-    def test_rejects_unsupported_targets(self):
+    def test_rejects_legacy_gnu_and_unsupported_targets(self):
         for target in (
             "",
             "x86_64-linux-gnu",
-            "x86_64-unknown-linux-musl",
+            "x86_64-unknown-linux-gnu",
+            "aarch64-unknown-linux-gnu",
             "aarch64-apple-darwin2",
-            "../../x86_64-unknown-linux-gnu",
+            "../../x86_64-unknown-linux-musl",
         ):
             with self.subTest(target=target):
                 with self.assertRaises(packaging.PackagingError):
@@ -487,9 +488,29 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertNotIn("macos-13", self.workflow)
         self.assertNotIn("ubuntu-22.04", self.workflow)
         self.assertNotIn("windows-2022", self.workflow)
+        self.assertNotIn("unknown-linux-gnu", self.workflow)
+        self.assertNotIn("glibc", self.workflow)
         for target in EXPECTED_TARGETS:
             with self.subTest(target=target):
                 self.assertIn(target, self.workflow)
+
+    def test_linux_targets_are_static_musl_with_elf_verification(self):
+        self.assertIn("x86_64-unknown-linux-musl", self.workflow)
+        self.assertIn("aarch64-unknown-linux-musl", self.workflow)
+        self.assertIn(
+            "CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: rust-lld",
+            self.workflow,
+        )
+        self.assertIn(
+            "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: rust-lld",
+            self.workflow,
+        )
+        self.assertIn("readelf", self.workflow)
+        self.assertIn("INTERP", self.workflow)
+        self.assertIn("NEEDED", self.workflow)
+        self.assertIn("if: runner.os == 'Linux'", self.workflow)
+        self.assertNotIn("apt-get", self.workflow)
+        self.assertNotIn("sudo", self.workflow)
 
     def test_build_is_scoped_to_native_crate_and_gates_on_validation(self):
         self.assertIn(

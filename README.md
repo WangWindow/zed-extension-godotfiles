@@ -21,6 +21,8 @@ upstream GDScript extension if installed.
 
 The resource server is found in this order: a configured binary path, local
 installation, cached release, then automatic download from GitHub Releases.
+Linux release binaries use static musl builds for x86_64 and ARM64, without a
+glibc runtime dependency.
 
 To build and install the server locally:
 
