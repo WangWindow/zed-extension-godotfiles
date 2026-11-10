@@ -32,11 +32,17 @@ The resource server starts when opening Godot Resource, Godot UID or GDShader fi
 
 ## GDScript
 
-Opening a GDScript file starts a bridge to Godot's language server at
-`127.0.0.1:6005`. Keep the Godot editor open for completion, diagnostics and
-navigation. The bridge uses the same executable as the resource server.
+For completion, diagnostics and navigation:
 
-For syntax highlighting only, disable the GDScript language service in Zed's settings:
+1. Open the same project in the Godot editor and keep it running.
+2. In Godot's Editor Settings, search for **Language Server** and check its port
+   (default: `6005`).
+3. Open a `.gd` file in Zed. The extension connects to `127.0.0.1:6005` through
+   `gdfiles-lsp`; it does not start Godot for you.
+
+### C# projects or syntax highlighting only
+
+If you do not need the GDScript language service, disable it in Zed's settings:
 
 ```json
 {
@@ -46,10 +52,13 @@ For syntax highlighting only, disable the GDScript language service in Zed's set
 }
 ```
 
-This disables both the language service and its bridge process. Resource features
-continue to work independently.
+This prevents the GDScript language service and bridge process from starting.
+GDScript highlighting, resource navigation, image previews and C# support remain
+available without a running Godot editor.
 
-To change the bridge endpoint:
+### Connection settings
+
+If Godot uses a different host or port, match it in Zed's settings:
 
 ```json
 {
@@ -67,9 +76,17 @@ To change the bridge endpoint:
 }
 ```
 
+If Zed reports `Server reset the connection` with `Connection refused` in stderr,
+the bridge could not connect to Godot's language server. Check that Godot has the
+project open and that the host and port match, then restart the GDScript language
+server in Zed or reopen the Zed window. Increasing `connectTimeoutMs` will not fix
+a port with no server listening. If you do not need GDScript features, use the
+disable setting above instead.
+
 ### GDScript debugging
 
-The `godot` adapter connects to the editor's debug adapter at `127.0.0.1:6006`.
+Keep the project open in Godot for debugging as well. The `godot` adapter connects
+to the editor's debug adapter at `127.0.0.1:6006`, separate from the LSP port `6005`.
 Add a launch or attach task to `.zed/debug.json`:
 
 ```json
