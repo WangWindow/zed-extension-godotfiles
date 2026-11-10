@@ -1,4 +1,5 @@
 mod gdscript;
+mod gdshader;
 mod installer;
 
 use zed_extension_api::{self as zed, LanguageServerId, Result, settings::LspSettings};
@@ -17,6 +18,10 @@ impl zed::Extension for GodotFilesExtension {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
+        if gdshader::is_server_id(language_server_id.as_ref()) {
+            return gdshader::language_server_command(worktree);
+        }
+
         let kind = gdscript::language_server_kind(language_server_id.as_ref())?;
 
         match kind {
@@ -72,6 +77,10 @@ impl zed::Extension for GodotFilesExtension {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<Option<zed::serde_json::Value>> {
+        if gdshader::is_server_id(language_server_id.as_ref()) {
+            return gdshader::initialization_options(worktree);
+        }
+
         let server_id = match gdscript::language_server_kind(language_server_id.as_ref()) {
             Ok(LanguageServerKind::Resource) => gdscript::RESOURCE_SERVER_ID,
             Ok(LanguageServerKind::Gdscript) => gdscript::GDSCRIPT_SERVER_ID,
@@ -81,6 +90,21 @@ impl zed::Extension for GodotFilesExtension {
         Ok(LspSettings::for_worktree(server_id, worktree)
             .ok()
             .and_then(|settings| settings.initialization_options))
+    }
+
+    fn language_server_workspace_configuration(
+        &mut self,
+        language_server_id: &LanguageServerId,
+        worktree: &zed::Worktree,
+    ) -> Result<Option<zed::serde_json::Value>> {
+        if gdshader::is_server_id(language_server_id.as_ref()) {
+            return gdshader::workspace_configuration(worktree);
+        }
+
+        // The GDScript bridge keeps its settings in `lsp.gdscript.settings`;
+        // they are translated into CLI arguments and must not be forwarded to
+        // the server as workspace configuration.
+        Ok(None)
     }
 
     fn get_dap_binary(

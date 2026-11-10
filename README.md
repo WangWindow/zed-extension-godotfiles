@@ -9,6 +9,7 @@ Godot file and scripting support for Zed.
 - Hover information with resolved paths, resource types and image thumbnails.
 - UID indexing from resource headers, `.uid` sidecars and `.import` metadata.
 - GDScript language service and debugging through the Godot editor.
+- Optional GDShader diagnostics and completion through an external LSP.
 
 C# language support and debugging are provided by [zed-csharp](https://github.com/kevin-mueller/zed-csharp).
 
@@ -100,6 +101,72 @@ Add a launch or attach task to `.zed/debug.json`:
 
 Use `netcoredbg` from the C# extension for C# debugging.
 
+## GDShader
+
+[gdshader-lsp-cpp](https://github.com/Dead-Shrimp-Studio/gdshader-lsp-cpp) provides
+code checks and other language features without a running Godot editor. It is
+optional and off by default in current Zed versions.
+
+Install an [upstream release](https://github.com/Dead-Shrimp-Studio/gdshader-lsp-cpp/releases)
+matching your Godot version: `v0.3.2` for 4.7+, or `v0.2.6` for 4.5–4.6. Open the
+directory containing `project.godot` as the Zed project root for `res://` includes.
+Enable the server and point to its executable:
+
+```json
+{
+  "languages": {
+    "GDShader": {
+      "language_servers": ["gdfiles-lsp", "gdshader-lsp"]
+    }
+  },
+  "lsp": {
+    "gdshader-lsp": {
+      "binary": { "path": "/absolute/path/to/gdshader-lsp" }
+    }
+  }
+}
+```
+
+Alternatively, install the upstream executable as `gdshader-lsp` or `gdshader_lsp`
+on PATH (with `.exe` on Windows) and omit `binary.path`. The hyphenated name is
+preferred when both exist. Rename the downloaded
+executable if needed; an explicit `binary.path` accepts any filename.
+It passes `--stdio --log-path=none` by default to avoid creating log files in your
+project. If you override `binary.arguments`, keep `--stdio` and choose your logging
+setting explicitly. The backend is not downloaded automatically.
+
+With the official `v0.3.2` Linux release:
+
+- Diagnostics, clearing errors after edits, completion, references, rename and
+  `res://` includes were tested. Reference results may highlight the whole
+  declaration rather than only its name.
+- Semantic tokens, inlay hints, folding, code actions, call hierarchy, workspace
+  symbols and colors are advertised, but have not been individually tested here.
+- Formatting, Shader symbol hover/definition, document symbols and signature help
+  are not advertised, so Zed cannot use them. Existing resource hover and path
+  navigation from `gdfiles-lsp` remain available.
+- Directly opening a function-bearing `.gdshaderinc` may incorrectly report
+  `GDS3012` (missing `shader_type`); this is an upstream limitation.
+
+The upstream Linux binary requires glibc 2.38+ and C++ runtime libraries; it is
+separate from this extension's static musl `gdfiles-lsp` binary. Upstream does not
+provide a Linux ARM64 binary.
+
+To disable shader code intelligence while keeping highlighting and resource features:
+
+```json
+{
+  "languages": {
+    "GDShader": {
+      "language_servers": ["gdfiles-lsp"]
+    }
+  }
+}
+```
+
+The community backend's diagnostics may differ from Godot's shader compiler;
+check the shader in Godot before relying on it in a game.
+
 ## Image previews
 
 PNG, JPEG, WebP, SVG, ICO, BMP, GIF, TGA, TIFF, DDS and HDR are supported.
@@ -126,5 +193,6 @@ To select a binary or disable previews, add to Zed's settings:
 - [Godot Files for VS Code](https://github.com/AlfishSoftware/godot-files-vscode) — resource navigation and preview reference.
 - [tree-sitter-gdscript](https://github.com/PrestonKnopp/tree-sitter-gdscript) and [tree-sitter-godot-resource](https://github.com/PrestonKnopp/tree-sitter-godot-resource) — Godot grammars.
 - [tree-sitter-gdshader](https://github.com/airblast-dev/tree-sitter-gdshader) — GDShader grammar and highlight queries.
+- [gdshader-lsp-cpp](https://github.com/Dead-Shrimp-Studio/gdshader-lsp-cpp) — optional GDShader language server.
 - [Zed extension API](https://github.com/zed-industries/zed/tree/main/crates/extension_api) and [lsp-server](https://github.com/rust-lang/rust-analyzer/tree/master/lib/lsp-server) — editor integration and LSP transport.
 - [image](https://github.com/image-rs/image) and [resvg](https://github.com/linebender/resvg) — image decoding and SVG rendering.
