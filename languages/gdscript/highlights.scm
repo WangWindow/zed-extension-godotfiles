@@ -349,7 +349,7 @@
   "@"
   ; "export" covered in Annotations above (@ followed by anything)
   ; "onready"
-  "setget"
+  ; "setget" was removed in Godot 4 and is not a token in the current grammar
   "set"
   "get"
 ] @attribute

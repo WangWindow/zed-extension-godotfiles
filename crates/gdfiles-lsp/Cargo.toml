@@ -1,0 +1,34 @@
+[package]
+name = "gdfiles-lsp"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Godot resource UID navigation and hover language server"
+publish = false
+
+[dependencies]
+base64 = "0.23"
+image = { version = "0.25", default-features = false, features = [
+    "png",
+    "jpeg",
+    "webp",
+    "gif",
+    "bmp",
+    "ico",
+    "tga",
+    "tiff",
+    "dds",
+    "hdr",
+] }
+lsp-server = "0.10"
+# SVG rasterization. Text, system fonts, font files and embedded/raster image
+# loading are deliberately not enabled: previews never touch the filesystem or
+# network beyond the already-validated SVG file itself.
+resvg = { version = "0.49", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2"
+walkdir = "2"
+
+[dev-dependencies]
+tempfile = "3"

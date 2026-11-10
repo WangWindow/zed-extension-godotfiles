@@ -1,9 +1,0 @@
-[package]
-name = "make_release"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-toml = "0.9"
-semver = "1.0"
-dialoguer = "0.12"

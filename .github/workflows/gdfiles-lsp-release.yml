@@ -1,0 +1,208 @@
+name: gdfiles-lsp release
+
+# Only matching native-binary tags publish. workflow_dispatch is a build/CI
+# dry run: it compiles and packages every target but never creates a release.
+on:
+  push:
+    tags:
+      - "gdfiles-lsp-v*"
+  workflow_dispatch:
+
+concurrency:
+  group: gdfiles-lsp-release-${{ github.ref }}
+  cancel-in-progress: false
+
+# Read-only by default; only the publish job opts into contents: write.
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate tests and tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+          cargo --version
+
+      - name: Read gdfiles-lsp version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json, sys; print(next(package["version"] for package in json.load(sys.stdin)["packages"] if package["name"] == "gdfiles-lsp"))')"
+          python3 scripts/package_gdfiles_lsp.py expected-tag --version "$version" > /dev/null
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          expected="$(python3 scripts/package_gdfiles_lsp.py expected-tag --version "$VERSION")"
+          if [ "$REF_NAME" != "$expected" ]; then
+            echo "::error::release tag $REF_NAME does not match package version $VERSION (expected $expected)"
+            exit 1
+          fi
+
+      - name: Test release packaging contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p test_release_packaging.py -v
+
+      - name: Test native gdfiles-lsp
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test -p gdfiles-lsp
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Current official labels. Linux uses Ubuntu 24.04, so the GNU
+          # binaries target a glibc 2.39 baseline. Windows 2025 is the current
+          # stable Windows Server image. macOS 26 is current stable for Apple
+          # Silicon; macOS 15 Intel remains the newest official x64 label
+          # recognized by current Actions tooling.
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            python: python3
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            python: python3
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            python: python3
+          - runner: macos-26
+            target: aarch64-apple-darwin
+            python: python3
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            python: python
+            executable_suffix: .exe
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust stable for target
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          rustup toolchain install stable --profile minimal --target "$TARGET" --no-self-update
+          rustup default stable
+          rustc --version
+          rustc -vV | sed -n 's/^host: /host: /p'
+          rustup target list --installed
+          rustup target list --installed | grep -qx "$TARGET"
+
+      - name: Build gdfiles-lsp
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          cargo build --release -p gdfiles-lsp --bin gdfiles-lsp --target "$TARGET"
+
+      - name: Package native release archive
+        shell: bash
+        env:
+          PYTHON: ${{ matrix.python }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          TARGET: ${{ matrix.target }}
+          EXECUTABLE_SUFFIX: ${{ matrix.executable_suffix }}
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+        run: |
+          set -euo pipefail
+          "$PYTHON" scripts/package_gdfiles_lsp.py package \
+            --binary "target/${TARGET}/release/gdfiles-lsp${EXECUTABLE_SUFFIX}" \
+            --license LICENCE \
+            --version "$VERSION" \
+            --target "$TARGET" \
+            --output-dir dist \
+            --tag "$RELEASE_TAG"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: gdfiles-lsp-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub release
+    needs:
+      - validate
+      - build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/gdfiles-lsp-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download all release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: gdfiles-lsp-*
+          path: dist
+          merge-multiple: true
+
+      - name: Verify release archive names and contents
+        shell: bash
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          python3 scripts/package_gdfiles_lsp.py verify-release \
+            --dist dist \
+            --version "$VERSION" \
+            --tag "$RELEASE_TAG"
+
+      - name: Create GitHub release with assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" \
+            --repo "$GH_REPO" \
+            --verify-tag \
+            --latest=false \
+            --title "gdfiles-lsp v${VERSION}" \
+            --generate-notes \
+            dist/*.tar.gz dist/*.zip

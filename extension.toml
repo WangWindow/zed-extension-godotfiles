@@ -1,25 +1,43 @@
-authors = ["Mark Brand <mark@grndctrl.com>", "Richard Taylor <moomerman@gmail.com>", "Radu Gafita <radugaf@gmail.com>", "Nathan Lovato <nathan@gdquest.com>", "Artemy Fedotov <catlovescpp@gmail.com>"]
-description = "Godot game engine support for Zed. Adds support for GDScript, Godot Resources (.tres, .tscn), and GDShader files."
-id = "gdscript"
-name = "GDScript"
-repository = "https://github.com/grndctrl/zed-gdscript"
+authors = ["WangWindow <1598593280@qq.com>"]
+description = "Zed support for the Godot files."
+id = "gdfiles"
+name = "Godot Files"
+repository = "https://github.com/WangWindow/zed-extension-godotfiles"
 schema_version = 1
-version = "0.9.0"
+version = "1.0.0"
+
+[language_servers.gdscript]
+name = "Godot GDScript"
+languages = ["GDScript"]
+
+[language_servers.gdscript.language_ids]
+GDScript = "gdscript"
+
+[language_servers.gdfiles-lsp]
+name = "gdfiles-lsp"
+languages = ["Godot Resource", "Godot UID", "GDShader"]
+
+[language_servers.gdfiles-lsp.language_ids]
+"Godot Resource" = "godot-resource"
+"Godot UID" = "godot-uid"
+GDShader = "gdshader"
 
 [debug_adapters.godot]
+schema_path = "debug_adapter_schemas/godot.json"
 
 [grammars.gdscript]
-commit = "0b9f60ebaa1c31f5153dd3a3b283ca0725734378"
+commit = "872e2e96905892c954da4101c74b884d0155f4d8"
 repository = "https://github.com/PrestonKnopp/tree-sitter-gdscript"
 
 [grammars.gdshader]
-commit = "ffd9f958df13cae04593781d7d2562295a872455"
-repository = "https://github.com/GodOfAvacyn/tree-sitter-gdshader"
+commit = "68268631c8b6dc093985f1246b099f81b30ea7d1"
+repository = "https://github.com/airblast-dev/tree-sitter-gdshader"
 
 [grammars.godot_resource]
-commit = "2ffb90de47417018651fc3b970e5f6b67214dc9d"
+commit = "302c1895f54bf74d53a08572f7b26a6614209adc"
 repository = "https://github.com/PrestonKnopp/tree-sitter-godot-resource"
 
-[language_servers.gdscript]
-language = "GDScript"
-name = "GDScript Language Server"
+[[capabilities]]
+kind = "download_file"
+host = "github.com"
+path = ["WangWindow", "zed-extension-godotfiles", "releases", "download", "**"]

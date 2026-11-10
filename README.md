@@ -1,104 +1,63 @@
-# Zed GDScript Extension
+# Godot Files for Zed
 
-This extension adds support for [GDScript](https://docs.godotengine.org/en/stable/classes/index.html), the scripting language used in the Godot game engine, to the Zed editor.
+Godot file and scripting support for Zed.
 
-## Requirements
+## Features
 
-- Zed Editor.
-- Godot Engine (version 3.x or 4.x).
-- The program `nc` or `ncat` is available in your system PATH.
+- Syntax highlighting for Godot scenes, resources, GDShader and GDScript.
+- Jump to resources through `uid://`, `res://`, `ExtResource` and `SubResource`.
+- Hover information with resolved paths, resource types and image thumbnails.
+- UID indexing from resource headers, `.uid` sidecars and `.import` metadata.
+- GDScript language service and debugging through the Godot editor.
 
-## How to install
+C# language support and debugging are provided by [zed-csharp](https://github.com/kevin-mueller/zed-csharp).
 
-To get language server support in Godot, you will first need to install the Netcat program. Netcat is a small program that allows Zed and Godot to communicate with each other.
+## Installation
 
-### Installing Netcat
+Run `zed: install dev extension` in Zed and select this repository. Disable the
+upstream GDScript extension if installed.
 
-You can install Netcat from your package manager:
+The resource server is found in this order: a configured binary path, local
+installation, cached release, then automatic download from GitHub Releases.
 
-- On Ubuntu/Debian Linux: `sudo apt install netcat`.
-- On Fedora Linux: `sudo dnf install nmap-ncat`.
-- On macOS: `brew install netcat`.
-- On Windows, Netcat is integrated with [NMap](https://nmap.org/download#windows). To install it:
-  1. Download and run the latest stable release self-installer
-  2. Ensure Nmap Core files, Register Nmap Path, Npcap and Ncat are selected from the list of options
-  3. When prompted, accept and install Npcap
+To build and install the server locally:
 
-Note that the installed program might be called `nc` or `ncat`, depending on your operating system and package manager (short for netcat). The extension will try to find either of them in your system PATH.
+```sh
+cargo install --path crates/gdfiles-lsp
+```
 
-### Installing the Zed GDScript Extension
+The resource server starts when opening Godot Resource, Godot UID or GDShader files.
 
-1. Open Zed.
-2. Go to Extensions.
-3. Search for *GDScript*.
-4. Click Install.
+## GDScript
 
-### Starting the Godot Language Server
+Opening a GDScript file starts a bridge to Godot's language server at
+`127.0.0.1:6005`. Keep the Godot editor open for completion, diagnostics and
+navigation. The bridge uses the same executable as the resource server.
 
-Unlike other programming languages, Godot's language server is part of the Godot editor. Godot uses the context of your project and scene files to provide auto-completion and project-specific error checks. So, to get the full experience of the Godot language server, you need to open your project in Godot.
+For syntax highlighting only, disable the GDScript language service in Zed's settings:
 
-After opening Godot, in Zed, you can use the command *editor: restart language server* to connect to Godot's language server.
+```json
+{
+  "languages": {
+    "GDScript": { "language_servers": [] }
+  }
+}
+```
 
-### Opening GDScript files in Zed instead of Godot
+This disables both the language service and its bridge process. Resource features
+continue to work independently.
 
-If you want to open GDScript files in Zed instead of Godot, you need to change Godot editor settings. In the Godot editor, go to *Editor > Editor Settings > Text Editor > External* and enable *Use External Editor*. Set the *Exec Path* to the path of your Zed executable and the *Exec Flags* to `{project} {file}:{line}:{col}`. This will open files and jump to the correct line in Zed when you click on an error or warning in Godot.
-
-If you have installed Godot and Zed via Flatpak on Linux, use the following parameters:
-
-1. Set "Exec Path" to `flatpak-spawn`.
-2. Set "Exec Flags" to `--host flatpak run dev.zed.Zed {project} {file}:{line}:{col}`.
-
-## Configuration
-
-Godot's language server is part of the Godot editor, and you need to open your project in Godot to use it.
-
-By default, the extension matches the default settings of the Godot editor to connect to its language server:
-
-- Remote Host: 127.0.0.1
-- Remote Port: 6005
-
-You can change these settings in Godot by going to *Editor > Editor Settings > Network > Language Server*. If you do that, you'll need to change the settings in Zed to match. You can change these settings by adding the following JSON configuration to your `settings.json` file:
+To change the bridge endpoint:
 
 ```json
 {
   "lsp": {
     "gdscript": {
-      "binary": {
-        "arguments": ["127.0.0.1", "6005"]
-      }
-    }
-  }
-}
-```
-
-### Opening documentation in the Godot editor
-
-You can configure Godot to open the relevant documentation page when running the `editor: go to declaration` command on a built-in piece of code.
-
-First, in Godot, open the Editor Settings. Then, go to Network -> Language Server and turn on Show Native Symbols in Editor. This configures the language server to open documentation pages in the Godot editor on demand.
-
-From there, in Zed, you can use the command `editor: go to declaration` to open the documentation in the editor. Note that it will **not** work with the `editor: go to definition` command (last tested in Godot 4.6.1).
-
-## Formatting
-
-Zed provides the ability to format files using an external formatter. There are a few options for GDScript formatting.
-
-### With [GDScript formatter](https://github.com/GDQuest/GDScript-formatter)
-
-[GDScript formatter](https://github.com/GDQuest/GDScript-formatter) is a fast code formatter and linter that is built with the same [tree-sitter-gdscript](https://github.com/PrestonKnopp/tree-sitter-gdscript) grammar that this extension uses.
-
-Install it and make sure that `gdscript-formatter` is available in your system PATH.
-
-Then, add the following configuration to your `settings.json` file:
-
-```json
-{
-  "languages": {
-    "GDScript": {
-      "formatter": {
-        "external": {
-          "command": "gdscript-formatter",
-          "arguments": []
+      "settings": {
+        "bridge": {
+          "host": "127.0.0.1",
+          "port": 6005,
+          "connectTimeoutMs": 5000
         }
       }
     }
@@ -106,55 +65,45 @@ Then, add the following configuration to your `settings.json` file:
 }
 ```
 
-### With [GDScript Toolkit](https://github.com/Scony/godot-gdscript-toolkit)
+### GDScript debugging
 
-[GDScript Toolkit](https://github.com/Scony/godot-gdscript-toolkit) is a Python-based formatter and linter for GDScript.
-
-Install it and make sure that `gdformat` is available in your system PATH.
-
-Then, add the following configuration to your `settings.json` file:
-
-```json
-{
-  "languages": {
-    "GDScript": {
-      "formatter": {
-        "external": {
-          "command": "gdformat",
-          "arguments": ["-"]
-        }
-      }
-    }
-  }
-}
-```
-
-## Debugging
-
-> [!NOTE]
-> At the time of writing this, debugging will not work when using Godot 4.4. It's confirmed to work in Godot 4.3 and 4.5, however.
-
-The extension provides a debug adapter that allows debugging GDScript code. To be able to do this, create `.zed/debug.json` file in the root of your workspace with the following content:
+The `godot` adapter connects to the editor's debug adapter at `127.0.0.1:6006`.
+Add a launch or attach task to `.zed/debug.json`:
 
 ```json
 [
-  {
-    "adapter": "godot",
-    "label": "Godot (Launch)",
-    "request": "launch"
-  },
-  {
-    "adapter": "godot",
-    "label": "Godot (Attach)",
-    "request": "attach"
-  }
+  { "adapter": "godot", "label": "Godot: launch", "request": "launch" },
+  { "adapter": "godot", "label": "Godot: attach", "request": "attach" }
 ]
 ```
 
-This will add 2 debug tasks: `Godot (Launch)` will launch a new debugging session, while `Godot (Attach)` will try to attach to an existing one. To run these tasks, press `F4`, then select the desired task from the menu.
+Use `netcoredbg` from the C# extension for C# debugging.
 
-Complete list of options can be found in [`debug_adapter_schemas/godot.json`](debug_adapter_schemas/godot.json). Zed will also suggest possible options through autocompletion when editing the `debug.json` file.
+## Image previews
 
-## Contributing
+PNG, JPEG, WebP, SVG, ICO, BMP, GIF, TGA, TIFF, DDS and HDR are supported.
+GIF previews use the first frame. DDS support covers DXT1/DXT3/DXT5.
+SVG previews render vector shapes without text or embedded images; filtered SVGs show metadata.
+Thumbnails fit within 192 × 128 px, keep their aspect ratio and never enlarge small images.
 
-- [Contributing to Scheme files](docs/contributing_scheme_files.md)
+To select a binary or disable previews, add to Zed's settings:
+
+```json
+{
+  "lsp": {
+    "gdfiles-lsp": {
+      "binary": { "path": "/absolute/path/to/gdfiles-lsp" },
+      "initialization_options": { "enablePreview": false }
+    }
+  }
+}
+```
+
+## Thanks
+
+- [zed-gdscript](https://github.com/grndctrl/zed-gdscript) — original extension.
+- [Godot Files for VS Code](https://github.com/AlfishSoftware/godot-files-vscode) — resource navigation and preview reference.
+- [tree-sitter-gdscript](https://github.com/PrestonKnopp/tree-sitter-gdscript) and [tree-sitter-godot-resource](https://github.com/PrestonKnopp/tree-sitter-godot-resource) — Godot grammars.
+- [tree-sitter-gdshader](https://github.com/airblast-dev/tree-sitter-gdshader) — GDShader grammar and highlight queries.
+- [Zed extension API](https://github.com/zed-industries/zed/tree/main/crates/extension_api) and [lsp-server](https://github.com/rust-lang/rust-analyzer/tree/master/lib/lsp-server) — editor integration and LSP transport.
+- [image](https://github.com/image-rs/image) and [resvg](https://github.com/linebender/resvg) — image decoding and SVG rendering.

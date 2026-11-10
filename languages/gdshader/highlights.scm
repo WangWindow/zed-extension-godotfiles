@@ -1,134 +1,45 @@
-; Made using highlights done for nvim-treesitter as a base
-; https://github.com/nvim-treesitter/nvim-treesitter/blob/42fc28ba918343ebfd5565147a42a26580579482/queries/gdshader/highlights.scm
+; GDShader highlights for Zed.
+; Adapted from airblast-dev/tree-sitter-gdshader v0.4.0
+; https://github.com/airblast-dev/tree-sitter-gdshader
+; commit 68268631c8b6dc093985f1246b099f81b30ea7d1
+; Copyright (c) 2025 Tayfun Bocek. MIT licensed; see LICENCE.
+; Zed capture adjustments: variable.member -> property, comment.documentation -> comment.doc.
 
-; Keywords
 [
-  "shader_type"
-  "render_mode"
   "group_uniforms"
   "uniform"
-  "varying"
-  "global"
-  "instance"
   "const"
-  "struct"
-] @keyword
-
-[
-  (shader_type)
-  (render_mode)
-  (hint_name)
-] @attribute
-
-; Modifiers
-[
-  "in"
-  "out"
-  "inout"
-  (precision_qualifier)
-  (interpolation_qualifier)
-] @keyword.modifier
-
-; Control flow
-[
-  ; repeat
-  "while"
-  "for"
-  ; return
-  "continue"
-  "break"
+  "varying"
+  "discard"
+  "render_mode"
+  "shader_type"
   "return"
-  ; conditional
+  "while"
+  "do"
+  "break"
+  "continue"
   "if"
   "else"
   "switch"
   "case"
   "default"
-] @keyword.control
+  "struct"
+  "for"
+] @keyword
 
-; Operators
+(parameter_qualifier) @keyword
+
+(interpolation_specifier) @keyword
+
+(precision_specifier) @keyword
+
+(scope) @keyword
+
 [
-  "="
-  "+="
-  "-="
-  "!"
-  "~"
-  "+"
-  "-"
-  "*"
-  "/"
-  "%"
-  "||"
-  "&&"
-  "|"
-  "^"
-  "&"
-  "=="
-  "!="
-  ">"
-  ">="
-  "<="
-  "<"
-  "<<"
-  ">>"
-  "++"
-  "--"
-] @operator
-
-; Preprocessor
-; Preprocessor words cannot be targetted completely because the parser
-; errs around many of them, or just doesn't recognize them as valid nodes.
-; Related to that, we can also not match "defined" well, since it detects
-; as a function call (in an invalid context).
-; Also not that the "#" symbol is NOT a part of the node, it's a separate
-; node even when matched correctly. E.g. `#include` parsed into "#" and
-; "include".
-(
-  "#" @keyword.preproc @preproc
-  . ; Direct siblings only.
-  [
-    ;"define"
-    ;"undef"
-    ;"ifdef"
-    ;"ifndef"
-    "if"
-    "elif"
-    "else"
-    ;"endif"
-    ;"error"
-    "include"
-    ;"pragma"
-  ] @keyword.preproc @preproc)
-; Explicitly match inside errors, because they don't match above.
-(ERROR
-  (
-    "#" @keyword.preproc @preproc
-    . ; Direct siblings only.
-    [
-        ;"define"
-        ;"undef"
-        ;"ifdef"
-        ;"ifndef"
-        "if"
-        "elif"
-        "else"
-        ;"endif"
-        ;"error"
-        "include"
-        ;"pragma"
-    ] @keyword.preproc @preproc))
-
-;"defined" @keyword.preproc @preproc
-
-; As a temporary solution we highlight "#" individually, so there is at
-; least something.
-"#" @keyword.preproc @preproc
-
-; Delimiters
-[
-  "."
-  ","
   ";"
+  "."
+  ":"
+  ","
 ] @punctuation.delimiter
 
 [
@@ -140,60 +51,252 @@
   "}"
 ] @punctuation.bracket
 
-; Comments
-(comment) @comment
-
-; Built-in types
-(boolean) @boolean
 [
-  (integer)
-  (float)
-] @number
-(string) @string
+  "="
+  "-"
+  "*"
+  "/"
+  "+"
+  "%"
+  "~"
+  "|"
+  "&"
+  "^"
+  "<<"
+  ">>"
+  "<"
+  "<="
+  ">="
+  ">"
+  "=="
+  "!="
+  "!"
+  "&&"
+  "||"
+  "-="
+  "+="
+  "*="
+  "/="
+  "%="
+  "|="
+  "&="
+  "^="
+  ">>="
+  "<<="
+  "--"
+  "++"
+  "?"
+  ":"
+] @operator
 
-(builtin_type) @type.builtin
-(builtin_variable) @constant.builtin
-(builtin_function) @function.builtin
+(comma_expression
+  operator: "," @operator)
 
-; User declarations
+(primitive_type) @type.builtin
 
-(ident) @variable
-(ident_type) @type
+(type_identifier) @type
 
-(group_uniforms_declaration
-  group_name: (ident) @attribute)
-(group_uniforms_declaration
-  group_name: (ident) @attribute
-  subgroup_name: (ident) @attribute)
+(number) @number
 
-(struct_declaration
-  name: (ident) @type)
+(boolean) @boolean
 
-(struct_member
-  name: (ident) @property)
+(case_statement
+  value: (identifier) @constant)
+
+; spatial
+(source_file
+  ; only comments and preprocessor directives are allowed before a shader type so ignore shader type
+  ; statements in any other node
+  (shader_type_statement
+    (shader_type) @_shader_type)
+  (#eq? @_shader_type "spatial")
+  (render_mode_statement
+    (render_mode) @keyword)
+  (#any-of? @keyword
+    "blend_mix" "blend_add" "blend_sub" "blend_mul" "blend_premul_alpha" "depth_draw_opaque"
+    "depth_draw_always" "depth_draw_never" "depth_prepass_alpha" "depth_test_disabled"
+    "sss_mode_skin" "cull_back" "cull_front" "cull_disabled" "unshaded" "wireframe"
+    "debug_shadow_splits" "diffuse_burley" "diffuse_lambert" "diffuse_lambert_wrap" "diffuse_toon"
+    "specular_schlick_ggx" "specular_toon" "specular_disabled" "skip_vertex_transform"
+    "world_vertex_coords" "ensure_correct_normals" "shadows_disabled" "ambient_light_disabled"
+    "shadow_to_opacity" "vertex_lighting" "particle_trails" "alpha_to_coverage"
+    "alpha_to_coverage_and_one" "fog_disabled"))
+
+; canvas_item
+(source_file
+  (shader_type_statement
+    (shader_type) @_shader_type)
+  (#eq? @_shader_type "canvas_item")
+  (render_mode_statement
+    (render_mode) @keyword)
+  (#any-of? @keyword
+    "blend_mix" "blend_add" "blend_sub" "blend_mul" "blend_premul_alpha" "blend_disabled" "unshaded"
+    "light_only" "skip_vertex_transform" "world_vertex_coords"))
+
+; particle
+(source_file
+  (shader_type_statement
+    (shader_type) @_shader_type)
+  (#eq? @_shader_type "particle")
+  (render_mode_statement
+    (render_mode) @keyword)
+  (#any-of? @keyword "keep_data" "disable_force" "disable_velocity" "collision_use_scale"))
+
+; sky
+(source_file
+  (shader_type_statement
+    (shader_type) @_shader_type)
+  (#eq? @_shader_type "sky")
+  (render_mode_statement
+    (render_mode) @keyword)
+  (#any-of? @keyword "use_half_res_pass" "use_quarter_res_pass" "disable_fog"))
+
+; fog has no render modes
+(shader_type_statement
+  (shader_type) @keyword
+  (#any-of? @keyword "spatial" "canvas_item" "particle" "sky" "fog"))
+
+(identifier) @variable
+
+(struct_definition
+  name: (identifier) @type)
+
+(struct_definition
+  (struct_fields
+    (field_definition
+      declarator: [
+        (identifier) @property
+        (array_declarator
+          declarator: (identifier) @property)
+      ])))
+
+(group_uniforms_declarator
+  group: (identifier) @attribute)
 
 (const_declaration
-  specifier: (var_specifier
-    name: (ident) @constant))
+  declarator: [
+    (identifier) @constant
+    (init_declarator
+      declarator: (identifier) @constant)
+    (array_declarator
+      declarator: (identifier) @constant)
+  ])
+
 (uniform_declaration
-  specifier: (var_specifier
-    name: (ident) @property))
+  declarator: [
+    (identifier) @property
+    (array_declarator
+      declarator: (identifier) @property)
+  ])
+
 (varying_declaration
-  specifier: (var_specifier
-    name: (ident) @property))
+  declarator: [
+    (identifier) @property
+    (init_declarator
+      declarator: (identifier) @property)
+    (array_declarator
+      declarator: (identifier) @property)
+  ])
 
-(function_declaration
-  name: (ident) @function)
+[
+  "#undef"
+  "#include"
+  "#if"
+  "#ifdef"
+  "#ifndef"
+  "#elif"
+  "#else"
+  "#endif"
+  "#define"
+  "#pragma"
+] @keyword
 
-(parameter
-  name: (ident) @variable.parameter)
+(preproc_include
+  path: (_) @string)
 
-(member_expr
-  member: (ident) @property)
+(preproc_define
+  name: (identifier) @function.macro)
 
-(call_expr
-  function: (ident) @function)
+(preproc_define_func
+  name: (identifier) @function.macro)
 
-; Not actually a function call, but rather a type constructor/literal.
-(call_expr
-  function: (builtin_type) @type.builtin)
+(preproc_undef
+  argument: (identifier) @constant)
+
+(preproc_ifdef
+  argument: (identifier) @constant)
+
+(preproc_ifndef
+  argument: (identifier) @constant)
+
+(comment) @comment
+
+((comment) @comment.doc
+  (#match? @comment.doc "^/\\*\\*[^/]"))
+
+(parameter_declaration
+  declarator: [
+    (identifier) @variable.parameter
+    (array_declarator
+      declarator: (identifier) @variable.parameter)
+  ])
+
+(function_definition
+  declarator: (identifier) @function)
+
+(field_expression
+  field: (_) @property)
+
+(call_expression
+  function: (identifier) @function)
+
+(method_expression
+  method: (_) @function)
+
+((call_expression
+  function: (identifier) @function.builtin)
+  (#any-of? @function.builtin
+    ; taken from: https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/shader_functions.html
+    ; trigonometric builtins
+    "radians" "degrees" "sin" "cos" "tan" "asin" "acos" "atan" "sinh" "cosh" "tanh" "asinh" "acosh"
+    "atanh"
+    ; exponential and math builtins
+    "pow" "exp" "exp2" "log" "log2" "sqrt" "inversesqrt" "abs" "sign" "floor" "round" "roundEven"
+    "trunc" "ceil" "fract" "mod" "modf" "min" "max" "clamp" "mix" "fma" "step" "smoothstep" "isnan"
+    "isinf" "floatBitsToInt" "floatBitsToUint" "intBitsToFloat" "uintBitsToFloat"
+    ; geometric builtins
+    "length" "distance" "dot" "cross" "normalize" "reflect" "refract" "faceforward" "matrixCompMult"
+    "outerProduct" "transpose" "determinant" "inverse"
+    ; comparison builtins
+    "lessThan" "greaterThan" "lessThanEqual" "equal" "notEqual" "any" "all" "not"
+    ; texture builtins
+    "textureSize" "textureQueryLod" "textureQueryLevels" "texture" "textureProj" "textureLod"
+    "textureProjLod" "textureGrad" "textureProjGrad" "texelFetch" "textureGather" "dFdx"
+    "dFdxCoarse" "dFdxFine" "dFdy" "dFdyCoarse" "dFdyFine" "fwidth" "fwidthCoarse" "fwidthFine"
+    ; packing unpacking builtins
+    "packHalf2x16" "unpackHalf2x16" "packUnorm2x16" "unpackUnorm2x16" "packSnorm2x16"
+    "unpackSnorm2x16" "packUnorm4x8" "unpackUnorm4x8" "packSnorm4x8" "unpackSnorm4x8"
+    ; bitwise builtins
+    "bitfieldExtract" "bitfieldInsert" "bitfieldReverse" "bitCount" "findLSB" "findMSB" "imulExtend"
+    "umulExtend" "uaddCarry" "usubBorrow" "ldexp" "frexp"))
+
+; assume all uppercase variables as constants
+((identifier) @constant
+  (#match? @constant "^[A-Z][A-Z_0-9]*$"))
+
+((identifier) @constant.builtin
+  (#any-of? @constant.builtin
+    ; common / declared in all shader types
+    "PI" "E" "TAU" "CURRENT_RENDERER" "RENDERER_COMPATIBILITY" "RENDERER_MOBILE"
+    "RENDERER_FORWARD_PLUS"; TODO: add more builtins
+    ))
+
+((identifier) @variable.builtin
+  (#any-of? @variable.builtin "TIME"))
+
+(type_hint
+  [
+    (identifier) @attribute
+    (call_expression
+      function: (_) @attribute)
+  ])
