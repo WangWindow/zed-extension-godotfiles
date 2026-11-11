@@ -11,19 +11,18 @@ Godot file and scripting support for Zed.
 - GDScript language service and debugging through the Godot editor.
 - Optional GDShader diagnostics and completion through an external LSP.
 
-C# language support and debugging are provided by [zed-csharp](https://github.com/kevin-mueller/zed-csharp).
-
 ![Godot resource hover in Zed showing a resolved path, resource type, open link and image preview](assets/2026-11-10_21-20-18.png)
 
 ## Installation
+
+> C# language features are provided by [zed-csharp](https://github.com/zed-extensions/csharp),
+> with debugging through [zed-netcoredbg](https://github.com/qwadrox/zed-netcoredbg).
 
 Run `zed: install dev extension` in Zed and select this repository. Disable the
 upstream GDScript extension if installed.
 
 The resource server is found in this order: a configured binary path, local
 installation, cached release, then automatic download from GitHub Releases.
-Linux release binaries use static musl builds for x86_64 and ARM64, without a
-glibc runtime dependency.
 
 To build and install the server locally:
 
@@ -32,6 +31,64 @@ cargo install --path crates/gdfiles-lsp
 ```
 
 The resource server starts when opening Godot Resource, Godot UID or GDShader files.
+
+
+## C# debugging and tasks
+
+Install [zed-netcoredbg](https://github.com/qwadrox/zed-netcoredbg) for the
+`netcoredbg` debug adapter, and use the .NET edition of Godot with the .NET SDK.
+The examples below assume the Zed worktree root contains `project.godot` and your
+`.csproj` or `.slnx`(`sln`). Adjust paths if your Godot project is in a subdirectory.
+
+> The task expects `godot-mono` on PATH; replace that command if your executable
+has a different name or location.
+
+### Build and debug
+
+Add to `.zed/debug.json`:
+
+```json
+[
+  {
+    "label": "Godot C#: Build & Debug",
+    "adapter": "netcoredbg",
+    "request": "launch",
+    "program": "godot-mono",
+    "args": ["--path", "${ZED_WORKTREE_ROOT}"],
+    "cwd": "${ZED_WORKTREE_ROOT}",
+    "stopAtEntry": false,
+    "build": {
+      "command": "dotnet build -c Debug",
+      "cwd": "$ZED_WORKTREE_ROOT"
+    }
+  }
+]
+```
+
+This launch configuration builds the project before starting Godot under the
+debugger; it does not require selecting a running process ID.
+
+### Build and play without debugging
+
+Add to `.zed/tasks.json`:
+
+```json
+[
+  {
+    "label": "Build",
+    "command": "dotnet build -c Debug",
+    "cwd": "$ZED_WORKTREE_ROOT"
+  },
+  {
+    "label": "Build & Play",
+    "command": "dotnet build -c Debug && godot-mono --path \"$ZED_WORKTREE_ROOT\"",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": true
+  }
+]
+```
+
+These tasks run without attaching a debugger.
 
 ## GDScript
 
@@ -43,7 +100,7 @@ For completion, diagnostics and navigation:
 3. Open a `.gd` file in Zed. The extension connects to `127.0.0.1:6005` through
    `gdfiles-lsp`; it does not start Godot for you.
 
-### C# projects or syntax highlighting only
+### GDScript syntax highlighting only
 
 If you do not need the GDScript language service, disable it in Zed's settings:
 
@@ -99,7 +156,7 @@ Add a launch or attach task to `.zed/debug.json`:
 ]
 ```
 
-Use `netcoredbg` from the C# extension for C# debugging.
+For C#, use the separate `netcoredbg` adapter described above, not `godot`.
 
 ## GDShader
 
@@ -190,6 +247,7 @@ To select a binary or disable previews, add to Zed's settings:
 ## Thanks
 
 - [zed-gdscript](https://github.com/grndctrl/zed-gdscript) — original extension.
+- [zed-csharp](https://github.com/zed-extensions/csharp) and [zed-netcoredbg](https://github.com/qwadrox/zed-netcoredbg) — C# language features and .NET debugging.
 - [Godot Files for VS Code](https://github.com/AlfishSoftware/godot-files-vscode) — resource navigation and preview reference.
 - [tree-sitter-gdscript](https://github.com/PrestonKnopp/tree-sitter-gdscript) and [tree-sitter-godot-resource](https://github.com/PrestonKnopp/tree-sitter-godot-resource) — Godot grammars.
 - [tree-sitter-gdshader](https://github.com/airblast-dev/tree-sitter-gdshader) — GDShader grammar and highlight queries.
